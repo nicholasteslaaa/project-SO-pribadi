@@ -1,39 +1,56 @@
 import tkinter as tk
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import psutil
+import time
 
-# Global flag to track if the RAM display is enabled
-show_ram_enabled = False
+class RAMUsageApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("RAM Usage Monitor")
 
-def update_ram():
-    if show_ram_enabled:
-        memory_info = psutil.virtual_memory()
-        ram_label.config(text=f"Memory Usage: {memory_info.percent}%")
-    window.after(1000, update_ram)  # Check again after 1 second
+        self.frame = tk.Frame(root)
+        self.frame.pack()
 
-def show_ram():
-    global show_ram_enabled
-    show_ram_enabled = True
+        # Create a Matplotlib figure
+        self.fig = Figure(figsize=(5, 4), dpi=100)
+        self.ax = self.fig.add_subplot(111)
+        self.ax.set_title("RAM Usage Percentage")
+        self.ax.set_ylim(0, 100)
+        self.x_data = []
+        self.y_data = []
 
-def elsebtn():
-    global show_ram_enabled
-    show_ram_enabled = False
-    ram_label.config(text="")
+        # Create a canvas to hold the figure
+        self.graph_label = tk.Label(self.frame, text="Press 'Update Graph' to see RAM usage.")
+        self.graph_label.grid(row=0, column=0)
+        # Start updating the plot
+        self.update_plot()
 
-window = tk.Tk()
-window.geometry("600x300")
+    def update_plot(self,graph_label):
+        # Get RAM usage percentage
+        ram_usage = psutil.virtual_memory().percent
 
-left_label = tk.Label(window, width=10, text="Project SO", font=("Arial", 12))
-left_label.grid(row=0, column=0)
+        # Update data lists
+        self.x_data.append(time.time())
+        self.y_data.append(ram_usage)
 
-ram_label = tk.Label(window, width=20, height=5, text='RAM Usage: 0%')
-ram_label.grid(row=1, column=1)
+        # Clear the axes and plot the new data
+        self.ax.clear()
+        self.ax.set_title("RAM Usage Percentage")
+        self.ax.set_ylim(ram_usage-5, ram_usage+5)
+        self.ax.plot(self.x_data, self.y_data, label=f'RAM Usage ({ram_usage}%)', color='blue')
+        self.ax.legend()
+        self.ax.grid()
 
-performances_btn = tk.Button(window, width=12, height=2, text="Performances", borderwidth=2, relief="solid", command=show_ram)
-performances_btn.grid(row=1, column=0)
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.graph_label)
+        self.canvas.get_tk_widget().grid(row=1, column=0)
+        # Refresh the canvas
+        self.canvas.draw()
+        
+        # Schedule the next update
+        self.root.after(1000, self.update_plot)  # Update every second
 
-else_btn = tk.Button(window, width=12, height=2, text="Hide RAM", borderwidth=2, relief="solid", command=elsebtn)
-else_btn.grid(row=2, column=0)
-
-update_ram()
-
-window.mainloop()
+# Create the main window
+root = tk.Tk()
+app = RAMUsageApp(root)
+root.mainloop()
