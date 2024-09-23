@@ -2,7 +2,7 @@ import tkinter as tk
 import psutil
 
 
-class performances():
+class performances:
     show_ram_enabled = False
     ramButton = None
     def update_ram():
