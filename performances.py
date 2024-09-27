@@ -1,10 +1,8 @@
-import tkinter as tk
-import psutil
-import time
+import psutil,os,time,tkinter as tk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-class RAM:
+class Performances_stat:
     def __init__(self):
         self.show_ram_enabled = False
         self.ramButton = None
@@ -38,8 +36,16 @@ class RAM:
                 text=f"USED: {memory_info.used/(1024**3):.1f}GB/{memory_info.total/(1024**3):.1f}GB ({memory_info.percent}%)\nAVAILABLE: {memory_info.available/(1024**2):.1f}MB"
             )
             current_time = time.time() - self.start_time
-            self.ram_time_data.append(current_time)
-            self.ram_usage_data.append(memory_info.percent)
+            
+            if len(self.ram_usage_data) > 5:
+                self.ram_usage_data.pop(0)
+            else: 
+                self.ram_usage_data.append(memory_info.percent)
+            
+            if len(self.ram_time_data) > 5:
+                self.ram_time_data.pop(0)
+            else:
+                self.ram_time_data.append(current_time)
 
             self.update_graph(graph_label, self.ram_time_data, self.ram_usage_data, "RAM")
         window.after(1000, lambda: self.update_ram(performances_label, window, graph_label))
@@ -82,11 +88,23 @@ class RAM:
         
     def update_cpu(self, performances_label, window, graph_label):
         if self.show_cpu_enabled:
-            cpu_percent = psutil.cpu_percent(interval=1)
-            performances_label.config(text=f"CPU Usage: {cpu_percent}%")
+            cpu_percent = psutil.cpu_percent(interval=0)
+            cpu_freq = psutil.cpu_freq()
+            current_freq_ghz = cpu_freq.current / 1000
+            cpu_info = os.popen("wmic cpu get Name").read()
+            performances_label.config(text=f"CPU: {cpu_info.strip().splitlines()[-1]}\nCPU Usage: {cpu_percent}%\nSpeed: {current_freq_ghz:.2f}GHz")
+            
             current_time = time.time() - self.start_time
-            self.cpu_time_data.append(current_time)
-            self.cpu_usage_data.append(cpu_percent)
+            if len(self.cpu_usage_data) > 5:
+                self.cpu_usage_data.pop(0)
+            else: 
+                self.cpu_usage_data.append(cpu_percent)
+            
+            if len(self.cpu_time_data) > 5:
+                self.cpu_time_data.pop(0)
+            else:
+                self.cpu_time_data.append(current_time)
+                
 
             self.update_graph(graph_label, self.cpu_time_data, self.cpu_usage_data, "CPU")
         window.after(1000, lambda: self.update_cpu(performances_label, window, graph_label))
@@ -102,9 +120,20 @@ class RAM:
         self.ax.set_title(f"{label} Usage Over Time")
         self.ax.set_xlabel("Time (seconds)")
         self.ax.set_ylabel(f"{label} Usage (%)")
-        self.ax.set_ylim(usage_data[-1]-5, usage_data[-1]+5)
-        self.ax.plot(time_data, usage_data, color='blue', label=f'{label} Usage: {usage_data[-1]}%')
-        self.ax.legend()
+        
+        below , above = None, None
+        if self.show_cpu_enabled:
+            below , above = 0, 100
+        if self.show_ram_enabled:
+            if usage_data[-1]-5 < 0:
+                below = 0
+            if usage_data[-1]+5 > 100:
+                above = 100
+            else:
+                below,above = usage_data[-1]-5, usage_data[-1]+5
+            
+        self.ax.set_ylim(below,above)
+        self.ax.plot(time_data, usage_data, color='blue')
         self.ax.grid(True)
 
         if self.canvas is None:
